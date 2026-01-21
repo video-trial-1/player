@@ -20,13 +20,10 @@
         const params = new URLSearchParams(window.location.search);
         const videoId = params.get('v');
         if (videoId) {
-            // autoplay=1 - try to autoplay
-            // mute=1 - required for autoplay in most browsers (user can unmute)
+            // No autoplay - user clicks YouTube's play button
             // fs=0 - disable YouTube's fullscreen button (use app's fullscreen instead)
-            // rel=0 - don't show related videos
-            // modestbranding=1 - minimal YouTube branding
             document.getElementById('player').src =
-                'https://www.youtube.com/embed/' + videoId + '?autoplay=1&mute=1&fs=0&rel=0&modestbranding=1';
+                'https://www.youtube.com/embed/' + videoId + '?fs=0&rel=0&modestbranding=1';
         }
     </script>
 </body>
