@@ -157,6 +157,38 @@
             }
             return false;
         }
+
+        function playerToggleFullscreen() {
+            var iframe = player.getIframe();
+            if (!iframe) return;
+
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            } else {
+                // Enter fullscreen
+                if (iframe.requestFullscreen) {
+                    iframe.requestFullscreen();
+                } else if (iframe.webkitRequestFullscreen) {
+                    iframe.webkitRequestFullscreen();
+                }
+            }
+        }
+
+        function playerEnterFullscreen() {
+            var iframe = player.getIframe();
+            if (!iframe) return;
+
+            if (iframe.requestFullscreen) {
+                iframe.requestFullscreen();
+            } else if (iframe.webkitRequestFullscreen) {
+                iframe.webkitRequestFullscreen();
+            }
+        }
     </script>
 </body>
 </html>
