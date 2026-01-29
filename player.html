@@ -7,23 +7,155 @@
     <style>
         * { margin: 0; padding: 0; }
         html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-        iframe { width: 100%; height: 100%; border: none; }
+        #player { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
-    <iframe id="player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen
-        referrerpolicy="strict-origin-when-cross-origin">
-    </iframe>
+    <div id="player"></div>
+
     <script>
+        // YouTube IFrame API
+        var player;
+        var isReady = false;
+        var stateUpdateInterval = null;
+
+        // Get video ID from URL params
         const params = new URLSearchParams(window.location.search);
         const videoId = params.get('v');
-        if (videoId) {
-            // No autoplay - user clicks YouTube's play button
-            // fs=0 - disable YouTube's fullscreen button (use app's fullscreen instead)
-            document.getElementById('player').src =
-                'https://www.youtube.com/embed/' + videoId + '?fs=0&rel=0&modestbranding=1';
+
+        // Load YouTube IFrame API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // Called by YouTube API when ready
+        function onYouTubeIframeAPIReady() {
+            if (!videoId) return;
+
+            player = new YT.Player('player', {
+                videoId: videoId,
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 1,
+                    'rel': 0,
+                    'modestbranding': 1,
+                    'fs': 0,  // Disable YouTube fullscreen (use app's)
+                    'playsinline': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            isReady = true;
+
+            // Notify Kotlin that player is ready
+            if (typeof Android !== 'undefined') {
+                Android.onPlayerReady();
+            }
+
+            // Start periodic state updates
+            startStateUpdates();
+        }
+
+        function onPlayerStateChange(event) {
+            var isPlaying = (event.data === YT.PlayerState.PLAYING);
+
+            // Notify Kotlin of playing state change
+            if (typeof Android !== 'undefined') {
+                Android.onPlayingChanged(isPlaying);
+            }
+        }
+
+        // Send state updates to Kotlin every 500ms
+        function startStateUpdates() {
+            if (stateUpdateInterval) clearInterval(stateUpdateInterval);
+
+            stateUpdateInterval = setInterval(function() {
+                if (!isReady || !player) return;
+
+                try {
+                    var state = player.getPlayerState();
+                    var isPlaying = (state === YT.PlayerState.PLAYING);
+                    var currentTime = player.getCurrentTime() || 0;
+                    var duration = player.getDuration() || 0;
+                    var volume = player.getVolume() || 100;
+
+                    if (typeof Android !== 'undefined') {
+                        Android.onStateUpdate(isPlaying, currentTime, duration, volume);
+                    }
+                } catch (e) {
+                    console.error('State update error:', e);
+                }
+            }, 500);
+        }
+
+        // ============ Functions called by Kotlin ============
+
+        function playerPlay() {
+            if (isReady && player) {
+                player.playVideo();
+            }
+        }
+
+        function playerPause() {
+            if (isReady && player) {
+                player.pauseVideo();
+            }
+        }
+
+        function playerSeek(seconds) {
+            if (isReady && player) {
+                player.seekTo(seconds, true);
+            }
+        }
+
+        function playerSeekRelative(deltaSeconds) {
+            if (isReady && player) {
+                var currentTime = player.getCurrentTime() || 0;
+                var duration = player.getDuration() || 0;
+                var newTime = Math.max(0, Math.min(duration, currentTime + deltaSeconds));
+                player.seekTo(newTime, true);
+            }
+        }
+
+        function playerSetVolume(volume) {
+            if (isReady && player) {
+                // YouTube volume is 0-100
+                player.setVolume(Math.max(0, Math.min(100, volume)));
+            }
+        }
+
+        function playerGetCurrentTime() {
+            if (isReady && player) {
+                return player.getCurrentTime() || 0;
+            }
+            return 0;
+        }
+
+        function playerGetDuration() {
+            if (isReady && player) {
+                return player.getDuration() || 0;
+            }
+            return 0;
+        }
+
+        function playerGetVolume() {
+            if (isReady && player) {
+                return player.getVolume() || 100;
+            }
+            return 100;
+        }
+
+        function playerIsPlaying() {
+            if (isReady && player) {
+                return player.getPlayerState() === YT.PlayerState.PLAYING;
+            }
+            return false;
         }
     </script>
 </body>
